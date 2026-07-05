@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Neo-Synapse BioMap | 아날로그 학습 메모장 & 역학 맵핑</title>
+  
+  <!-- PWA Manifest & Mobile Icons -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#8b5a2b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- Tesseract.js for Client-Side Offline OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Nanum+Myeongjo:wght@700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- App Container -->
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation (Left) -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo-icon">📔</div>
+        <div class="logo-text">
+          <h1>BioMap Ledger</h1>
+          <span>ANALOG COMPILER v1.3</span>
+        </div>
+      </div>
+      
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="tab-graph" id="btn-tab-graph">
+          <i data-lucide="network"></i>
+          <span>바이오맵 그래프</span>
+        </button>
+        <button class="nav-item" data-tab="tab-notes" id="btn-tab-notes">
+          <i data-lucide="book-open"></i>
+          <span>나만의 노트 보관소</span>
+        </button>
+        <button class="nav-item" data-tab="tab-ingest" id="btn-tab-ingest">
+          <i data-lucide="sparkles"></i>
+          <span>노트 입력 & 매핑</span>
+        </button>
+        <button class="nav-item" data-tab="tab-quiz" id="btn-tab-quiz">
+          <i data-lucide="brain-circuit"></i>
+          <span>시냅스 활성 퀴즈</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="system-status" style="margin-bottom: 12px;">
+          <span class="pulse-indicator"></span>
+          <span>공부 누적 데이터베이스 활성</span>
+        </div>
+        <button id="btn-reset-database" class="btn-danger-outline" style="width:100%; padding:10px 12px; font-size:11px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+          <i data-lucide="refresh-cw" style="width:12px; height:12px;"></i> 학습 데이터 초기화
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Tab 1: Graph Visualization -->
+      <section id="tab-graph" class="tab-panel active">
+        <header class="panel-header">
+          <div class="header-title">
+            <h2>신경-운동역학 통합 네트워크</h2>
+            <p>페이지와 문단 단위로 누적되어 형성된 나만의 해부학 신경망</p>
+          </div>
+          
+          <!-- Controls Panel (Layer Filters) -->
+          <div class="graph-filters">
+            <div class="filter-group">
+              <span class="filter-label">레이어 필터:</span>
+              <button class="layer-toggle active" data-layer="L1" style="--layer-color: #4682b4;">
+                <span class="dot"></span> L1. 감각 입력
+              </button>
+              <button class="layer-toggle active" data-layer="L2" style="--layer-color: #8b008b;">
+                <span class="dot"></span> L2. 신경 조절
+              </button>
+              <button class="layer-toggle active" data-layer="L3" style="--layer-color: #556b2f;">
+                <span class="dot"></span> L3. 근골격/장기
+              </button>
+              <button class="layer-toggle active" data-layer="L4" style="--layer-color: #c27d38;">
+                <span class="dot"></span> L4. 임상 패턴
+              </button>
+            </div>
+            
+            <div class="search-bar">
+              <i data-lucide="search"></i>
+              <input type="text" id="search-nodes" placeholder="개념, 신경, 반사 또는 노트 검색...">
+            </div>
+          </div>
+        </header>
+
+        <!-- Visualization Canvas Container -->
+        <div class="canvas-wrapper">
+          <canvas id="graph-canvas"></canvas>
+          
+          <!-- Interactive Guide overlay -->
+          <div class="canvas-guide">
+            <i data-lucide="info"></i>
+            <span>드래그: 이동 | 핀치/휠: 확대/축소 | 노드 탭: 상세정보 및 출처 분석</span>
+          </div>
+
+          <!-- Quick Actions Overlay -->
+          <div class="canvas-actions">
+            <button id="btn-zoom-in" title="확대"><i data-lucide="zoom-in"></i></button>
+            <button id="btn-zoom-out" title="축소"><i data-lucide="zoom-out"></i></button>
+            <button id="btn-zoom-reset" title="화면 맞춤"><i data-lucide="maximize-2"></i></button>
+            <button id="btn-add-node-manual" class="btn-primary" title="노드 직접 추가">
+              <i data-lucide="plus"></i> <span>신규 노드</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 2: My Notes Archive -->
+      <section id="tab-notes" class="tab-panel">
+        <header class="panel-header">
+          <div class="header-title">
+            <h2>나만의 노트 보관소</h2>
+            <p>도서별, 페이지별로 차곡차곡 요약해 매핑한 나만의 아날로그 학습 아카이브</p>
+          </div>
+        </header>
+
+        <div class="notes-archive-grid">
+          <!-- Sidebar: Notes list -->
+          <div class="notes-list-sidebar">
+            <button id="btn-create-note-shortcut" class="btn-primary" style="width: 100%; margin-bottom: 16px;">
+              <i data-lucide="plus-circle"></i> <span>새 노트 붙여넣기</span>
+            </button>
+            <div class="notes-list-scroll" id="archived-notes-list">
+              <!-- Dynamically populated list of notes -->
+            </div>
+          </div>
+
+          <!-- Content: Note Viewer -->
+          <div class="note-viewer-pane">
+            <div id="note-viewer-empty" class="viewer-placeholder">
+              <i data-lucide="file-text" class="viewer-empty-icon"></i>
+              <p>좌측 목록에서 공부 노트를 선택해 주세요.<br>페이지 인용 출처와 연동된 지식 사슬이 로드됩니다.</p>
+            </div>
+            
+            <div id="note-viewer-content" class="note-viewer-content-box hidden">
+              <div class="note-viewer-header">
+                <div>
+                  <h3 id="note-view-title">노트 제목</h3>
+                  <span class="note-citation" id="note-view-citation">도서명 p.00 - 문단</span>
+                  
+                  <!-- Tagged keywords displaying area -->
+                  <div class="note-keywords-row" id="note-view-keywords" style="margin-top: 6px;">
+                    <!-- Keyword chips dynamic -->
+                  </div>
+
+                  <span class="note-date" id="note-view-date" style="margin-top: 6px;">2026-07-05 19:20</span>
+                </div>
+                <div class="note-viewer-actions">
+                  <button id="btn-highlight-on-graph" class="btn-primary-outline">
+                    <i data-lucide="eye"></i> 그래프에 표시
+                  </button>
+                  <button id="btn-delete-note" class="btn-danger-outline">
+                    <i data-lucide="trash-2"></i> 삭제
+                  </button>
+                </div>
+              </div>
+
+              <div class="note-viewer-body">
+                <div class="note-section-title">📝 원본 노트 내용</div>
+                <pre class="note-text-display" id="note-view-text">요약 본문 내용...</pre>
+
+                <div class="note-section-title">🧬 형성된 해부학/생리 시냅스 고리</div>
+                <div class="note-mapped-elements" id="note-view-mappings">
+                  <!-- Mapped elements chips generated dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 3: Note Ingestion Form -->
+      <section id="tab-ingest" class="tab-panel">
+        <header class="panel-header">
+          <div class="header-title">
+            <h2>공부 요약 & 바이오 매핑</h2>
+            <p>삼성노트/굿노트의 해석 필기를 붙여넣으세요. 전공서 페이지와 문단을 지정해 나만의 자산을 적재합니다.</p>
+          </div>
+        </header>
+
+        <div class="ingest-grid">
+          <!-- Ingest Left: Inputs -->
+          <div class="ingest-card input-panel">
+            <div class="input-panel-header">
+              <h3>신규 페이지 요약 등록</h3>
+              <button id="btn-toggle-syntax-help" class="btn-secondary-outline" style="padding: 6px 12px; font-size:11px;">
+                <i data-lucide="help-circle"></i> 인라인 기호 룰
+              </button>
+            </div>
+            
+            <div class="syntax-help-drawer hidden" id="syntax-help-box">
+              <h4>지식 연결 지름길 기호 (Inline Syntax)</h4>
+              <p>노트 중간에 아래 규칙을 적용해 작성하시면 즉시 관계가 시각화됩니다:</p>
+              <ul>
+                <li><code>개념A -> 개념B [관계명]</code></li>
+                <li>*예시: 삼차신경 -> 안면마비 [신경지배]*</li>
+                <li>*예시: 미주신경 -> 서맥유발 [부교감반사]*</li>
+              </ul>
+            </div>
+
+            <div class="ingest-methods" style="margin-top:12px;">
+              <!-- Book details (Flex Row) -->
+              <div class="form-row-custom">
+                <div class="form-group" style="flex: 2;">
+                  <label for="new-note-book">전공 도서명</label>
+                  <input type="text" id="new-note-book" placeholder="예: 뉴만 키네지올로지" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <label for="new-note-page">페이지(p.)</label>
+                  <input type="number" id="new-note-page" placeholder="예: 112" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <label for="new-note-paragraph">문단 / 위치</label>
+                  <input type="text" id="new-note-paragraph" placeholder="예: 첫째 문단">
+                </div>
+              </div>
+
+              <!-- Title input -->
+              <div class="form-group">
+                <label for="new-note-title">노트 제목 / 핵심 요약 주제</label>
+                <input type="text" id="new-note-title" placeholder="예: 흉쇄유돌근의 경추 안정화 기전 해석" required>
+              </div>
+
+              <!-- Keywords input -->
+              <div class="form-group">
+                <label for="new-note-keywords">공부 대표 키워드 (쉼표 또는 띄어쓰기로 구분)</label>
+                <input type="text" id="new-note-keywords" placeholder="예: 짝힘, 어깨충돌증후군, 전거근">
+              </div>
+
+              <!-- Drag and Drop local OCR target box -->
+              <div class="form-group">
+                <label for="ocr-image-upload">사진(문단 캡처)에서 텍스트 자동 추출 (로컬 자가 OCR)</label>
+                <div class="ocr-dropzone" id="ocr-dropzone">
+                  <i data-lucide="image-plus" class="ocr-icon" style="width: 24px; height: 24px; margin-bottom: 6px; color: var(--color-primary);"></i>
+                  <span class="ocr-label">여기에 이미지 드래그 또는 터치하여 업로드</span>
+                  <input type="file" id="ocr-image-upload" accept="image/*" style="display: none;">
+                </div>
+                <div id="ocr-status-container" class="ocr-status-container hidden" style="display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--color-primary); font-weight: 600;">
+                  <span class="ocr-spinner"></span>
+                  <span id="ocr-status-text">이미지 텍스트 분석 중 (0%)...</span>
+                </div>
+              </div>
+
+              <!-- Note body textarea -->
+              <div class="form-group">
+                <label for="custom-ocr-text">삼성노트 / 굿노트 요약본 내용</label>
+                <textarea id="custom-ocr-text" placeholder="캡처 이미지를 올려 글자를 추출하거나 직접 여기에 필기를 붙여넣으세요...&#10;직관적인 연결 기호(예: 개념A -> 개념B [관계])를 줄바꿈해서 쓰시면 관계가 즉시 맵핑됩니다."></textarea>
+              </div>
+
+              <div class="upload-actions">
+                <button id="btn-parse-text" class="btn-primary" style="width: 100%;">
+                  <i data-lucide="cpu"></i> 노트 분석 및 해부학 관계 추출
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ingest Right: AI & Inline Parser Result -->
+          <div class="ingest-card result-panel">
+            <h3>파싱 및 연결 구조 요약</h3>
+            <div id="ingest-result-empty" class="result-placeholder">
+              <i data-lucide="git-merge" class="ai-bot-icon"></i>
+              <p>노트 메타데이터와 내용을 기입하고 '관계 추출'을 진행해 주세요.<br>내 필기가 맵에 적재될 구조가 표기됩니다.</p>
+            </div>
+            
+            <div id="ingest-result-content" class="result-content-box hidden">
+              <div class="ai-status-bar">
+                <span class="ai-success"><i data-lucide="check-circle"></i> 연결 고리 검증 완료</span>
+                <span id="extracted-stats">개념 3개, 시냅스 2개 생성 예정</span>
+              </div>
+
+              <!-- Parsed Nodes -->
+              <div class="extracted-section">
+                <h4>포함될 바이오 노드 (개념 미세 조정)</h4>
+                <div class="extracted-nodes" id="extracted-nodes-list"></div>
+              </div>
+
+              <!-- Parsed Connections -->
+              <div class="extracted-section">
+                <h4>생성될 시냅스 관계 (연결선)</h4>
+                <div class="extracted-links" id="extracted-links-list"></div>
+              </div>
+
+              <!-- Action Confirmation -->
+              <div class="confirm-actions">
+                <button id="btn-reject-ingest" class="btn-danger-outline">취소</button>
+                <button id="btn-accept-ingest" class="btn-success">
+                  <i data-lucide="file-plus"></i> 노트 저장 및 맵핑 업데이트
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 4: Synaptic Active Recall Quiz -->
+      <section id="tab-quiz" class="tab-panel">
+        <header class="panel-header">
+          <div class="header-title">
+            <h2>시냅스 활성 퀴즈 (Active Recall)</h2>
+            <p>나의 공부 노트에서 기원한 맞춤형 지식 네트워크를 토대로 퀴즈를 풀며 장기기억으로 굳힙니다.</p>
+          </div>
+        </header>
+
+        <div class="quiz-container">
+          <!-- Quiz Dashboard / Start Screen -->
+          <div id="quiz-start-screen" class="quiz-card main-quiz-card">
+            <i data-lucide="shield-alert" class="quiz-hero-icon"></i>
+            <h3>나의 노트 기반 기억 인출</h3>
+            <p>등록하신 노트 내용의 유기적 관계들을 기반으로 퀴즈가 매번 다르게 생성됩니다.<br>직접 맵핑한 해부학 관계망을 인출해 보세요.</p>
+            
+            <div class="quiz-stats-grid">
+              <div class="stat-card">
+                <span class="num" id="stat-total-nodes">0</span>
+                <span class="lbl">나의 지식 개념 수</span>
+              </div>
+              <div class="stat-card">
+                <span class="num" id="stat-total-links">0</span>
+                <span class="lbl">구축한 시냅스 수</span>
+              </div>
+              <div class="stat-card">
+                <span class="num" id="stat-ready-review">0</span>
+                <span class="lbl">검토 필요한 사슬 고리</span>
+              </div>
+            </div>
+
+            <button id="btn-start-quiz" class="btn-primary btn-large">
+              <i data-lucide="play"></i> 복습 퀴즈 시작하기
+            </button>
+          </div>
+
+          <!-- Quiz Play Screen -->
+          <div id="quiz-play-screen" class="quiz-card main-quiz-card hidden">
+            <div class="quiz-header-meta">
+              <span class="quiz-progress" id="quiz-progress-text">문제 1 / 5</span>
+              <span class="quiz-timer" id="quiz-timer"><i data-lucide="clock"></i> <span id="timer-val">00:00</span></span>
+            </div>
+            
+            <div class="quiz-question-box">
+              <span class="question-badge" id="quiz-q-layer">L3. 근골격 구조</span>
+              <h3 id="quiz-question-title">대둔근(Gluteus Maximus)이 얀다의 하부교차증후군(LCS)에서 갖는 관계는 무엇인가요?</h3>
+              <p class="question-help" id="quiz-question-desc">연결된 임상적 특징 및 보상 작용의 맥락을 선택해 주세요.</p>
+            </div>
+
+            <!-- Quiz Option Selections (Dynamic) -->
+            <div class="quiz-options" id="quiz-options-container">
+              <!-- Dynamically generated options -->
+            </div>
+
+            <div class="quiz-actions">
+              <button id="btn-quit-quiz" class="btn-secondary-outline">중단하기</button>
+              <button id="btn-submit-answer" class="btn-primary">정답 제출</button>
+              <button id="btn-next-question" class="btn-success hidden">다음 문제로 <i data-lucide="arrow-right"></i></button>
+            </div>
+
+            <!-- Quiz Feedback Block -->
+            <div id="quiz-feedback" class="quiz-feedback-box hidden">
+              <div class="feedback-icon" id="feedback-icon-box">
+                <i data-lucide="check"></i>
+              </div>
+              <div class="feedback-text">
+                <h4 id="feedback-result-title">정답입니다!</h4>
+                <p id="feedback-result-desc">설명이 들어갑니다.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quiz Results Screen -->
+          <div id="quiz-result-screen" class="quiz-card main-quiz-card hidden">
+            <i data-lucide="trophy" class="quiz-result-icon"></i>
+            <h3>시냅스 강화 완료!</h3>
+            <p>오늘의 복습 퀴즈 결과입니다. 연결선들이 활성화되어 기억 지탱 기간이 늘어났습니다.</p>
+            
+            <div class="score-display">
+              <span class="score-num" id="quiz-score-display">4 / 5</span>
+              <span class="score-label">맞춘 문제</span>
+            </div>
+
+            <div class="reinforcement-details" id="quiz-strengthened-nodes">
+              <!-- Strengthened connections will be listed here -->
+            </div>
+
+            <button id="btn-quiz-finish" class="btn-primary">완료하고 바이오맵으로 돌아가기</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Slide-out Concept Inspector Panel (Right) -->
+    <aside class="inspector" id="concept-inspector">
+      <button class="close-inspector" id="btn-close-inspector" title="패널 닫기">
+        <i data-lucide="x"></i>
+      </button>
+
+      <!-- Mode A: Selected Node Details -->
+      <div id="inspector-content-view" class="inspector-section">
+        <div class="inspector-header">
+          <span class="node-badge" id="insp-layer-badge">L3. 근골격 구조</span>
+          <h2 id="insp-title">Gluteus Maximus</h2>
+          <span class="node-type" id="insp-type-badge">Muscle</span>
+        </div>
+
+        <div class="inspector-body">
+          <!-- Description -->
+          <div class="insp-card">
+            <h3>해부/역학적 상세 정보</h3>
+            <p id="insp-desc">상세 역학...</p>
+          </div>
+
+          <!-- Origin Note Context -->
+          <div class="insp-card" id="insp-origin-card">
+            <h3>지식 출처 요약노트</h3>
+            <p id="insp-origin-name" style="font-size: 13px; font-weight:600; color:var(--color-primary); cursor:pointer;">기초 데이터베이스</p>
+          </div>
+
+          <!-- Connections lists -->
+          <div class="insp-card">
+            <h3>연결된 인체 고리 (시냅스)</h3>
+            <div class="relation-lists" id="insp-relations">
+              <!-- Dynamically populated links -->
+            </div>
+          </div>
+          
+          <div class="insp-actions">
+            <button id="btn-edit-node" class="btn-secondary-outline"><i data-lucide="edit-3"></i> 편집</button>
+            <button id="btn-delete-node" class="btn-danger-outline"><i data-lucide="trash-2"></i> 삭제</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode B: Add / Edit Node Form -->
+      <div id="inspector-edit-view" class="inspector-section hidden">
+        <div class="inspector-header">
+          <h2 id="edit-panel-title">바이오 노드 추가/편집</h2>
+        </div>
+        <form class="inspector-form" id="node-edit-form" onsubmit="return false;">
+          <input type="hidden" id="edit-node-id">
+          
+          <div class="form-group">
+            <label for="edit-node-label">명칭 (한글/영문)</label>
+            <input type="text" id="edit-node-label" placeholder="예: 대둔근 (Gluteus Maximus)" required>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-node-layer">생리적 레이어</label>
+            <select id="edit-node-layer" required>
+              <option value="L1">L1. 감각 입력 (Afferent)</option>
+              <option value="L2">L2. 신경 조절 (Control)</option>
+              <option value="L3">L3. 근골격/장기 (Structural)</option>
+              <option value="L4">L4. 임상/기능 패턴 (Functional)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-node-type">노드 성격</label>
+            <select id="edit-node-type" required>
+              <option value="Muscle">근육 (Muscle)</option>
+              <option value="Joint">관절 (Joint / Bone)</option>
+              <option value="Neurology">신경/신경로 (Nerve / Tract)</option>
+              <option value="Sensory">감각수용기 (Receptor)</option>
+              <option value="Organ">장기/생리계 (Organ / Visceral)</option>
+              <option value="Clinical">임상/증후군 (Syndrome / Symptom)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="edit-node-desc">상세 설명 & 학술 근거</label>
+            <textarea id="edit-node-desc" rows="5" placeholder="인용 출처나 상세 역학 메커니즘을 작성하세요..." required></textarea>
+          </div>
+
+          <div class="form-actions-row">
+            <button type="button" id="btn-cancel-edit" class="btn-secondary-outline">취소</button>
+            <button type="submit" id="btn-save-node" class="btn-primary">저장하기</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Mode C: Default / Empty List View -->
+      <div id="inspector-default-view" class="inspector-section">
+        <div class="inspector-header">
+          <h2>학습 라이브러리 목록</h2>
+          <p>현재 바이오맵에 적재된 모든 개념 인덱스</p>
+        </div>
+        <div class="search-sort-box">
+          <select id="sort-nodes-select">
+            <option value="layer">레이어별 정렬</option>
+            <option value="name">가나다순 정렬</option>
+          </select>
+        </div>
+        <div class="node-list-container" id="global-node-list">
+          <!-- Dynamically populated list of nodes -->
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Manual Relation Creation Dialog / Modal -->
+  <div class="modal-overlay hidden" id="relation-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>새로운 시냅스(연결) 형성</h3>
+        <button class="btn-close-modal" id="btn-close-rel-modal"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="relation-form" onsubmit="return false;">
+          <div class="form-group">
+            <label for="rel-source-select">출발지 노드 (원인 / 지배원 / 주동근)</label>
+            <select id="rel-source-select" required></select>
+          </div>
+
+          <div class="form-group">
+            <label for="rel-type">관계 속성</label>
+            <select id="rel-type" required>
+              <option value="innervates">신경 지배 (Innervates)</option>
+              <option value="triggers">유발/활성화 (Triggers / Facilitates)</option>
+              <option value="inhibits">신경학적 억제 (Neurologically Inhibits)</option>
+              <option value="compensates">보상 작용 지배 (Compensates / Dominates)</option>
+              <option value="part_of">~의 구성원 (Part of Syndrome / Sling)</option>
+              <option value="prevents">예방/안정화 (Prevents / Stabilizes)</option>
+              <option value="coordinates">상호 협조 (Coordinates with)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="rel-target-select">도착지 노드 (결과 / 길항근 / 증후군)</label>
+            <select id="rel-target-select" required></select>
+          </div>
+
+          <div class="form-group">
+            <label for="rel-desc">관계 매커니즘 설명 (논문 인용 및 생체역학 근거)</label>
+            <textarea id="rel-desc" rows="3" placeholder="예: 상호 억제 반사궁을 통해 길항근 알파 운동신경의 막전위를 떨어뜨림..." required></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" id="btn-cancel-rel" class="btn-secondary-outline">취소</button>
+            <button type="submit" id="btn-save-rel" class="btn-primary">시냅스 형성</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => {
+            console.log('[PWA] Service Worker registered successfully, scope:', reg.scope);
+          })
+          .catch((err) => {
+            console.error('[PWA] Service Worker registration failed:', err);
+          });
+      });
+    }
+  </script>
+
+  <!-- Javascript Modules -->
+  <script type="module" src="db.js"></script>
+  <script type="module" src="graph.js"></script>
+  <script type="module" src="ingest.js"></script>
+  <script type="module" src="quiz.js"></script>
+  <script type="module" src="app.js"></script>
+
+</body>
+</html>
